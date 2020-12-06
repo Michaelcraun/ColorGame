@@ -1,0 +1,165 @@
+//
+//  GameElements.swift
+//  ColorGame
+//
+//  Created by Michael Craun on 9/4/17.
+//  Copyright © 2017 Craunic Productions. All rights reserved.
+//
+
+import SpriteKit
+import GameplayKit
+
+extension GameScene {
+    
+    func setupTracks() {
+        
+        for i in 0...8 {
+            
+            if let track = self.childNode(withName: "\(i)") as? SKSpriteNode {
+                
+                tracksArray?.append(track)
+                
+            }
+        }
+    }
+    
+    func spawnEnemies() {
+        
+        var randomTrackNumber = 0
+        let createPowerUp = GKRandomSource.sharedRandom().nextBool()
+        
+        if createPowerUp {
+            
+            randomTrackNumber = GKRandomSource.sharedRandom().nextInt(upperBound: 6) + 1
+            
+            if let powerUpObject = self.createPowerUp(forTrack: randomTrackNumber) {
+                
+                self.addChild(powerUpObject)
+                
+            }
+        }
+        
+        for i in 1...7 {
+            
+            if randomTrackNumber != i {
+                
+                let randomEnemyType = Enemies(rawValue: GKRandomSource.sharedRandom().nextInt(upperBound: 3))!
+                if let newEnemy = createEnemy(type: randomEnemyType, forTrack: i) {
+                    
+                    self.addChild(newEnemy)
+                    
+                }
+            }
+        }
+        
+        self.enumerateChildNodes(withName: "ENEMY") { (node: SKNode, nil) in
+            
+            if node.position.y < -150 || node.position.y > self.size.height + 150 {
+                
+                node.removeFromParent()
+                
+            }
+        }
+    }
+    
+    func createPlayer() {
+        
+        player = SKSpriteNode(imageNamed: "player")
+        player?.physicsBody = SKPhysicsBody(circleOfRadius: player!.size.width / 2)
+        player?.physicsBody?.linearDamping = 0
+        player?.physicsBody?.categoryBitMask = playerCategory
+        player?.physicsBody?.collisionBitMask = 0
+        player?.physicsBody?.contactTestBitMask = enemyCategory | targetCategory | powerUpCategory
+        
+        guard let playerPosition = tracksArray?.first?.position.x else {return}
+        player?.position = CGPoint(x: playerPosition, y: self.size.height / 2)
+        
+        self.addChild(player!)
+        
+        let pulse = SKEmitterNode(fileNamed: "pulse")!
+        player?.addChild(pulse)
+        pulse.position = CGPoint(x: 0, y: 0)
+        
+    }
+    
+    func createTarget() {
+        
+        target = self.childNode(withName: "target") as? SKSpriteNode
+        target?.physicsBody = SKPhysicsBody(circleOfRadius: target!.size.width / 2)
+        target?.physicsBody?.categoryBitMask = targetCategory
+        target?.physicsBody?.collisionBitMask = 0
+        
+    }
+    
+    func createHUD() {
+        
+        pauseButton = self.childNode(withName: "pause") as? SKSpriteNode
+        timeLabel = self.childNode(withName: "time") as? SKLabelNode
+        scoreLabel = self.childNode(withName: "score") as? SKLabelNode
+        
+        remainingTime = 60
+        currentScore = 0
+        
+    }
+    
+    func createEnemy(type: Enemies, forTrack track: Int) -> SKShapeNode? {
+        
+        let enemySprite = SKShapeNode()
+        
+        let up = directionArray[track]
+        guard let enemyPosition = tracksArray?[track].position else { return nil }
+        
+        switch type {
+        case .small:
+            enemySprite.path = CGPath(roundedRect: CGRect(x: -10, y: 0, width: 20, height: 70),
+                                      cornerWidth: 8,
+                                      cornerHeight: 8,
+                                      transform: nil)
+            enemySprite.fillColor = UIColor(red: 0.4431, green: 0.5529, blue: 0.7451, alpha: 1)
+        case .medium:
+            enemySprite.path = CGPath(roundedRect: CGRect(x: -10, y: 0, width: 20, height: 100),
+                                      cornerWidth: 8,
+                                      cornerHeight: 8,
+                                      transform: nil)
+            enemySprite.fillColor = UIColor(red: 0.7804, green: 0.4039, blue: 0.4039, alpha: 1)
+        case .large:
+            enemySprite.path = CGPath(roundedRect: CGRect(x: -10, y: 0, width: 20, height: 130),
+                                      cornerWidth: 8,
+                                      cornerHeight: 8,
+                                      transform: nil)
+            enemySprite.fillColor = UIColor(red: 0.7804, green: 0.6392, blue: 0.4039, alpha: 1)
+        }
+        
+        enemySprite.name = "ENEMY"
+        enemySprite.position.x = enemyPosition.x
+        enemySprite.position.y = up ? -130 : self.size.height + 130
+        
+        enemySprite.physicsBody = SKPhysicsBody(edgeLoopFrom: enemySprite.path!)
+        enemySprite.physicsBody?.velocity = up ? CGVector(dx: 0, dy: velocityArray[track]) : CGVector(dx: 0, dy: -velocityArray[track])
+        enemySprite.physicsBody?.categoryBitMask = enemyCategory
+        
+        return enemySprite
+        
+    }
+    
+    func createPowerUp(forTrack track: Int) -> SKSpriteNode? {
+        
+        let powerUpSprite = SKSpriteNode(imageNamed: "powerUp")
+        powerUpSprite.name = "ENEMY"
+        
+        powerUpSprite.physicsBody = SKPhysicsBody(circleOfRadius: powerUpSprite.size.width / 2)
+        powerUpSprite.physicsBody?.linearDamping = 0
+        powerUpSprite.physicsBody?.categoryBitMask = powerUpCategory
+        powerUpSprite.physicsBody?.collisionBitMask = 0
+        
+        let up = directionArray[track]
+        guard let powerUpXPosition = tracksArray?[track].position.x else { return nil }
+        
+        powerUpSprite.position.x = powerUpXPosition
+        powerUpSprite.position.y = up ? -130 : self.size.height + 130
+        powerUpSprite.physicsBody?.velocity = up ? CGVector(dx: 0, dy: velocityArray[track]) : CGVector(dx: 0, dy: -velocityArray[track])
+        
+        return powerUpSprite
+        
+    }
+}
